@@ -1,7 +1,8 @@
 /**
  * ============================================================================
  * The Boundless Canvas — Sticky Notes & Decay Engine
- * Firestore sync, note rendering, decay physics, ash particles, like/extend
+ * Firestore sync, note rendering, decay physics, ash particles, like/extend,
+ * burn mechanic, floating badge animations, shake effects
  * 100% authentic — all data persisted to Cloud Firestore
  * ============================================================================
  */
@@ -38,7 +39,12 @@ export class NotesManager {
     this.notes = new Map(); // id -> note object
     this.selectedColor = NOTE_COLORS[0].hex;
     this.pendingWorldPos = { x: 0, y: 0 };
-    this.hoveredLikeNoteId = null;
+
+    // Floating action badges (drifting "+2h" / "-10%" text particles)
+    this.floatingBadges = [];
+
+    // Per-note shake animation state { noteId -> { intensity, decay, offsetX, offsetY } }
+    this.noteShakes = new Map();
 
     // DOM Elements
     this.editorOverlay = document.getElementById('note-editor');
@@ -104,7 +110,6 @@ export class NotesManager {
     this.textarea.value = '';
     this.charCounter.textContent = '320';
 
-    // Ensure editor stays within screen boundaries
     const editorWidth = 320;
     const editorHeight = 220;
     const clampedX = Math.min(Math.max(screenX, editorWidth / 2 + 10), window.innerWidth - editorWidth / 2 - 10);
@@ -156,23 +161,31 @@ export class NotesManager {
   }
 
   /* ==========================================================================
-     NOTE EXTENSION & LIKE MECHANICS (FIRESTORE)
+     ❤️ LIKE — EXTEND LIFESPAN BY +2 HOURS
      ========================================================================== */
 
-  async extendNote(noteId) {
+  async likeNote(noteId) {
     const note = this.notes.get(noteId);
     if (!note) return;
 
-    // Optimistic local update for instant visual feedback
+    // Optimistic local update for instant feedback
     note.expiresAt = (note.expiresAt || Date.now()) + EXTEND_LIFETIME;
     note.likes = (note.likes || 0) + 1;
 
+    // Spawn floating green "+2h" badge
+    this.spawnFloatingBadge(
+      note.x + NOTE_WIDTH / 2,
+      note.y + NOTE_HEIGHT / 2,
+      '+2h',
+      '#22c55e' // Green
+    );
+
     // Emit celebration particles
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 6; i++) {
       this.canvasEngine.spawnDecayParticle(note.x + NOTE_WIDTH / 2, note.y + NOTE_HEIGHT / 2);
     }
 
-    this.showToast('Lifespan extended by +2 hours! 🔥', 'flame');
+    this.showToast('Lifespan extended by +2 hours! ❤️', 'heart');
 
     try {
       const noteRef = doc(db, 'notes', noteId);
@@ -183,6 +196,157 @@ export class NotesManager {
     } catch (err) {
       console.warn('Could not sync like to Firestore:', err);
       this.showToast('Could not sync to server — try again.', 'alert-triangle');
+    }
+  }
+
+  /* ==========================================================================
+     🔥 BURN — REDUCE REMAINING LIFESPAN BY 10%
+     ========================================================================== */
+
+  async burnNote(noteId) {
+    const note = this.notes.get(noteId);
+    if (!note) return;
+
+    const now = Date.now();
+    const remaining = (note.expiresAt || now) - now;
+    
+    // Calculate 10% of remaining lifespan
+    const burnAmount = Math.max(60000, Math.floor(remaining * 0.10)); // Minimum 1 minute burn
+
+    // Optimistic local update
+    note.expiresAt = (note.expiresAt || now) - burnAmount;
+
+    // Spawn floating red "-10%" badge
+    this.spawnFloatingBadge(
+      note.x + NOTE_WIDTH / 2,
+      note.y + NOTE_HEIGHT / 2,
+      '-10%',
+      '#ef4444' // Red
+    );
+
+    // Trigger shake animation on this note
+    this.noteShakes.set(noteId, {
+      intensity: 6,
+      decay: 0.88,
+      offsetX: 0,
+      offsetY: 0
+    });
+
+    // Emit intense ash/ember particles
+    for (let i = 0; i < 12; i++) {
+      this.canvasEngine.spawnDecayParticle(
+        note.x + Math.random() * NOTE_WIDTH,
+        note.y + NOTE_HEIGHT * (0.6 + Math.random() * 0.4)
+      );
+    }
+
+    this.showToast('Note scorched! Lifespan reduced by 10% 🔥', 'flame');
+
+    try {
+      const noteRef = doc(db, 'notes', noteId);
+      await updateDoc(noteRef, {
+        expiresAt: increment(-burnAmount)
+      });
+    } catch (err) {
+      console.warn('Could not sync burn to Firestore:', err);
+      this.showToast('Could not sync burn to server.', 'alert-triangle');
+    }
+  }
+
+  /* ==========================================================================
+     FLOATING BADGE PARTICLE SYSTEM
+     Drifting "+2h" / "-10%" text badges that float up and fade out
+     ========================================================================== */
+
+  spawnFloatingBadge(worldX, worldY, text, color) {
+    this.floatingBadges.push({
+      x: worldX,
+      y: worldY,
+      text: text,
+      color: color,
+      vy: -1.2,                // Drift upward speed (world units/frame)
+      opacity: 1.0,
+      scale: 1.0,
+      life: 1.0,               // 1.0 = full, 0.0 = gone
+      decayRate: 0.018          // How fast the badge fades
+    });
+  }
+
+  updateFloatingBadges() {
+    for (let i = this.floatingBadges.length - 1; i >= 0; i--) {
+      const badge = this.floatingBadges[i];
+      badge.y += badge.vy;
+      badge.life -= badge.decayRate;
+      badge.opacity = Math.max(0, badge.life);
+      badge.scale = 0.8 + badge.life * 0.4; // Slight shrink as it fades
+
+      if (badge.life <= 0) {
+        this.floatingBadges.splice(i, 1);
+      }
+    }
+  }
+
+  renderFloatingBadges(ctx) {
+    const zoom = this.canvasEngine.camera.zoom;
+
+    for (const badge of this.floatingBadges) {
+      const screenPos = this.canvasEngine.worldToScreen(badge.x, badge.y);
+
+      // Skip if offscreen
+      if (screenPos.x < -80 || screenPos.x > this.canvasEngine.width + 80 ||
+          screenPos.y < -80 || screenPos.y > this.canvasEngine.height + 80) {
+        continue;
+      }
+
+      ctx.save();
+      ctx.globalAlpha = badge.opacity;
+      ctx.translate(screenPos.x, screenPos.y);
+
+      const fontSize = Math.max(12, 16 * zoom * badge.scale);
+
+      // Glow shadow
+      ctx.shadowColor = badge.color;
+      ctx.shadowBlur = 12;
+
+      // Pill background
+      ctx.font = `800 ${fontSize}px "Plus Jakarta Sans", "Inter", sans-serif`;
+      const metrics = ctx.measureText(badge.text);
+      const pillW = metrics.width + 16 * zoom;
+      const pillH = fontSize + 8 * zoom;
+      const pillX = -pillW / 2;
+      const pillY = -pillH / 2;
+
+      ctx.beginPath();
+      this.roundRect(ctx, pillX, pillY, pillW, pillH, pillH / 2);
+      ctx.fillStyle = badge.color;
+      ctx.fill();
+
+      // Reset shadow for text
+      ctx.shadowColor = 'transparent';
+
+      // Text
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(badge.text, 0, 1);
+
+      ctx.restore();
+    }
+  }
+
+  /* ==========================================================================
+     SHAKE ANIMATION UPDATE
+     ========================================================================== */
+
+  updateShakes() {
+    for (const [noteId, shake] of this.noteShakes.entries()) {
+      shake.offsetX = (Math.random() - 0.5) * shake.intensity * 2;
+      shake.offsetY = (Math.random() - 0.5) * shake.intensity * 2;
+      shake.intensity *= shake.decay;
+
+      if (shake.intensity < 0.15) {
+        this.noteShakes.delete(noteId);
+      }
     }
   }
 
@@ -211,7 +375,7 @@ export class NotesManager {
   }
 
   /* ==========================================================================
-     INTERACTIONS (DOUBLE CLICK & LIKE BUTTON HIT-TEST)
+     INTERACTIONS — HIT TESTING FOR ❤️ LIKE & 🔥 BURN BUTTONS
      ========================================================================== */
 
   bindCanvasInteractions() {
@@ -227,13 +391,22 @@ export class NotesManager {
       }
     });
 
-    // Single click for like / flame button
+    // Single click for action buttons
     canvas.addEventListener('click', (e) => {
       const worldPos = this.canvasEngine.screenToWorld(e.clientX, e.clientY);
-      const hitLikeNote = this.hitTestLikeButton(worldPos.x, worldPos.y);
 
-      if (hitLikeNote) {
-        this.extendNote(hitLikeNote.id);
+      // Check Like button first
+      const hitLike = this.hitTestLikeButton(worldPos.x, worldPos.y);
+      if (hitLike) {
+        this.likeNote(hitLike.id);
+        return;
+      }
+
+      // Check Burn button
+      const hitBurn = this.hitTestBurnButton(worldPos.x, worldPos.y);
+      if (hitBurn) {
+        this.burnNote(hitBurn.id);
+        return;
       }
     });
 
@@ -241,8 +414,9 @@ export class NotesManager {
     canvas.addEventListener('mousemove', (e) => {
       const worldPos = this.canvasEngine.screenToWorld(e.clientX, e.clientY);
       const hitLike = this.hitTestLikeButton(worldPos.x, worldPos.y);
+      const hitBurn = this.hitTestBurnButton(worldPos.x, worldPos.y);
 
-      if (hitLike) {
+      if (hitLike || hitBurn) {
         canvas.style.cursor = 'pointer';
       } else if (!this.canvasEngine.isSpacePressed && !this.canvasEngine.isDragging) {
         const hitNote = this.hitTestNote(worldPos.x, worldPos.y);
@@ -265,19 +439,37 @@ export class NotesManager {
     return null;
   }
 
+  /**
+   * ❤️ Like button — positioned at bottom-right of each note
+   */
   hitTestLikeButton(worldX, worldY) {
-    const btnW = 60;
+    const btnW = 48;
     const btnH = 26;
     for (const note of this.notes.values()) {
       const btnX = note.x + NOTE_WIDTH - btnW - 10;
       const btnY = note.y + NOTE_HEIGHT - btnH - 10;
 
-      if (
-        worldX >= btnX &&
-        worldX <= btnX + btnW &&
-        worldY >= btnY &&
-        worldY <= btnY + btnH
-      ) {
+      if (worldX >= btnX && worldX <= btnX + btnW &&
+          worldY >= btnY && worldY <= btnY + btnH) {
+        return note;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * 🔥 Burn button — positioned to the left of the Like button
+   */
+  hitTestBurnButton(worldX, worldY) {
+    const btnW = 48;
+    const btnH = 26;
+    for (const note of this.notes.values()) {
+      const likeBtnX = note.x + NOTE_WIDTH - btnW - 10;
+      const btnX = likeBtnX - btnW - 6; // Left of the like button with gap
+      const btnY = note.y + NOTE_HEIGHT - btnH - 10;
+
+      if (worldX >= btnX && worldX <= btnX + btnW &&
+          worldY >= btnY && worldY <= btnY + btnH) {
         return note;
       }
     }
@@ -285,13 +477,17 @@ export class NotesManager {
   }
 
   /* ==========================================================================
-     RENDERING NOTES WITH DECAY & FRUSTUM CULLING
+     RENDERING NOTES WITH DECAY, ACTIONS & FRUSTUM CULLING
      ========================================================================== */
 
   renderNotes(ctx) {
     const now = Date.now();
     const zoom = this.canvasEngine.camera.zoom;
     let visibleCount = 0;
+
+    // Update animation systems
+    this.updateFloatingBadges();
+    this.updateShakes();
 
     for (const note of this.notes.values()) {
       // 1. Frustum Culling Check
@@ -318,15 +514,24 @@ export class NotesManager {
         );
       }
 
-      // 4. Compute Screen Coordinates & Render
+      // 4. Compute Screen Coordinates & Render (with optional shake offset)
       this.drawSingleNote(ctx, note, ratio, remaining, zoom);
     }
+
+    // 5. Render floating badges on top of everything
+    this.renderFloatingBadges(ctx);
 
     return visibleCount;
   }
 
   drawSingleNote(ctx, note, ratio, remaining, zoom) {
+    const shake = this.noteShakes.get(note.id);
+    const shakeX = shake ? shake.offsetX : 0;
+    const shakeY = shake ? shake.offsetY : 0;
+
     const screenPos = this.canvasEngine.worldToScreen(note.x, note.y);
+    const sx = screenPos.x + shakeX;
+    const sy = screenPos.y + shakeY;
     const screenW = NOTE_WIDTH * zoom;
     const screenH = NOTE_HEIGHT * zoom;
     const cornerRadius = 10 * Math.min(1.5, Math.max(0.5, zoom));
@@ -340,15 +545,20 @@ export class NotesManager {
     }
     ctx.globalAlpha = opacity;
 
-    // Drop shadow
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
-    ctx.shadowBlur = 16 * zoom;
+    // Shake-induced red glow when burning
+    if (shake && shake.intensity > 1) {
+      ctx.shadowColor = 'rgba(239, 68, 68, 0.7)';
+      ctx.shadowBlur = 20 * zoom;
+    } else {
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+      ctx.shadowBlur = 16 * zoom;
+    }
     ctx.shadowOffsetX = 0;
     ctx.shadowOffsetY = 6 * zoom;
 
     // Rounded rectangle path
     ctx.beginPath();
-    this.roundRect(ctx, screenPos.x, screenPos.y, screenW, screenH, cornerRadius);
+    this.roundRect(ctx, sx, sy, screenW, screenH, cornerRadius);
 
     // Note Background
     const colorInfo = NOTE_COLORS.find(c => c.hex.toLowerCase() === (note.color || '').toLowerCase()) || NOTE_COLORS[0];
@@ -356,10 +566,10 @@ export class NotesManager {
 
     // If decaying (< 0.25), darken edges with charred ash tone
     if (ratio < 0.25) {
-      const charGrad = ctx.createLinearGradient(screenPos.x, screenPos.y, screenPos.x, screenPos.y + screenH);
+      const charGrad = ctx.createLinearGradient(sx, sy, sx, sy + screenH);
       charGrad.addColorStop(0, note.color);
       charGrad.addColorStop(0.7, note.color);
-      charGrad.addColorStop(1, '#1e1b18'); // Burnt bottom edge
+      charGrad.addColorStop(1, '#1e1b18');
       ctx.fillStyle = charGrad;
     }
 
@@ -388,41 +598,68 @@ export class NotesManager {
 
     const padding = 14 * zoom;
     const maxTextWidth = screenW - padding * 2;
-    this.drawWrappedText(ctx, note.text, screenPos.x + padding, screenPos.y + padding, maxTextWidth, fontSize * 1.35, 4);
+    this.drawWrappedText(ctx, note.text, sx + padding, sy + padding, maxTextWidth, fontSize * 1.35, 4);
 
-    // 6. Draw Footer: Lifespan Timer & Like/Fire Button
-    const footerY = screenPos.y + screenH - 24 * zoom;
+    // 6. Draw Footer: Lifespan Timer & Action Buttons
+    const footerY = sy + screenH - 26 * zoom;
 
     // Time remaining string
     const timeLeftStr = this.formatTimeRemaining(remaining, ratio);
     ctx.font = `600 ${Math.max(8, 10 * zoom)}px "JetBrains Mono", monospace`;
     ctx.fillStyle = ratio < 0.25 ? '#dc2626' : 'rgba(0, 0, 0, 0.55)';
-    ctx.fillText(timeLeftStr, screenPos.x + padding, footerY + 3 * zoom);
+    ctx.fillText(timeLeftStr, sx + padding, footerY + 5 * zoom);
 
-    // Like / Flame Button Pill
-    const btnW = 54 * zoom;
+    // ── Action Buttons ──────────────────────────────────────────────────
+
     const btnH = 22 * zoom;
-    const btnX = screenPos.x + screenW - btnW - padding;
-    const btnY = footerY;
+    const btnW = 44 * zoom;
+    const btnGap = 5 * zoom;
 
+    // ❤️ Like Button (rightmost)
+    const likeBtnX = sx + screenW - btnW - padding;
+    const likeBtnY = footerY;
+    this.drawActionButton(ctx, likeBtnX, likeBtnY, btnW, btnH, '❤️', `${note.likes || 0}`, 
+      'rgba(34, 197, 94, 0.12)', 'rgba(34, 197, 94, 0.25)', colorInfo.textHex, zoom);
+
+    // 🔥 Burn Button (left of Like)
+    const burnBtnX = likeBtnX - btnW - btnGap;
+    const burnBtnY = footerY;
+    this.drawActionButton(ctx, burnBtnX, burnBtnY, btnW, btnH, '🔥', '', 
+      'rgba(239, 68, 68, 0.1)', 'rgba(239, 68, 68, 0.2)', colorInfo.textHex, zoom);
+
+    ctx.restore();
+  }
+
+  /**
+   * Draws a single rounded action button pill with an emoji and optional count label.
+   */
+  drawActionButton(ctx, x, y, w, h, emoji, label, bgColor, borderColor, textColor, zoom) {
+    const radius = h / 2;
+
+    // Pill background
     ctx.beginPath();
-    this.roundRect(ctx, btnX, btnY, btnW, btnH, btnH / 2);
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.08)';
+    this.roundRect(ctx, x, y, w, h, radius);
+    ctx.fillStyle = bgColor;
     ctx.fill();
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.12)';
+    ctx.strokeStyle = borderColor;
     ctx.lineWidth = 1;
     ctx.stroke();
 
-    // Flame icon & count text
-    ctx.fillStyle = '#ea580c';
-    ctx.font = `${Math.max(9, 11 * zoom)}px "Inter", sans-serif`;
-    ctx.fillText('🔥', btnX + 6 * zoom, btnY + 3 * zoom);
+    // Emoji icon
+    const emojiFontSize = Math.max(9, 11 * zoom);
+    ctx.font = `${emojiFontSize}px "Inter", sans-serif`;
+    ctx.fillStyle = textColor;
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'left';
+    ctx.fillText(emoji, x + 5 * zoom, y + h / 2 + 1);
 
-    ctx.fillStyle = colorInfo.textHex || '#0f172a';
-    ctx.font = `700 ${Math.max(8, 10 * zoom)}px "JetBrains Mono", monospace`;
-    ctx.fillText(`${note.likes || 0}`, btnX + 24 * zoom, btnY + 4 * zoom);
-
-    ctx.restore();
+    // Optional count label
+    if (label) {
+      ctx.font = `700 ${Math.max(8, 9 * zoom)}px "JetBrains Mono", monospace`;
+      ctx.fillStyle = textColor;
+      ctx.textAlign = 'left';
+      ctx.fillText(label, x + 22 * zoom, y + h / 2 + 1);
+    }
   }
 
   formatTimeRemaining(ms, ratio) {
