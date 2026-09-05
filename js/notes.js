@@ -2,12 +2,12 @@
  * ============================================================================
  * The Boundless Canvas — Sticky Notes & Decay Engine
  * Firestore sync, note rendering, decay physics, ash particles, like/extend
+ * 100% authentic — all data persisted to Cloud Firestore
  * ============================================================================
  */
 
 import {
   db,
-  isDemoMode,
   collection,
   onSnapshot,
   addDoc,
@@ -123,7 +123,7 @@ export class NotesManager {
   }
 
   /* ==========================================================================
-     NOTE CREATION & PERSISTENCE
+     NOTE CREATION & PERSISTENCE (FIRESTORE)
      ========================================================================== */
 
   async submitNote() {
@@ -146,41 +146,26 @@ export class NotesManager {
 
     this.hideEditor();
 
-    if (isDemoMode) {
-      // LocalStorage Demo Mode
-      const id = 'demo_' + Math.random().toString(36).substring(2, 9);
-      newNote.id = id;
-      this.notes.set(id, newNote);
-      this.saveLocalNotes();
-      this.showToast('Thought pinned to the void! (Saved locally)', 'check-circle');
-    } else {
-      try {
-        const docRef = await addDoc(collection(db, 'notes'), newNote);
-        this.showToast('Thought pinned to the global void! 📌', 'check-circle');
-      } catch (err) {
-        console.error('Error writing note to Firestore:', err);
-        this.showToast('Error saving note. Stored locally.', 'alert-triangle');
-        const id = 'local_' + Date.now();
-        newNote.id = id;
-        this.notes.set(id, newNote);
-      }
+    try {
+      await addDoc(collection(db, 'notes'), newNote);
+      this.showToast('Thought pinned to the void! 📌', 'check-circle');
+    } catch (err) {
+      console.error('Error writing note to Firestore:', err);
+      this.showToast('Failed to save note — check your connection.', 'alert-triangle');
     }
   }
 
   /* ==========================================================================
-     NOTE EXTENSION & LIKE MECHANICS
+     NOTE EXTENSION & LIKE MECHANICS (FIRESTORE)
      ========================================================================== */
 
   async extendNote(noteId) {
     const note = this.notes.get(noteId);
     if (!note) return;
 
-    const newExpires = (note.expiresAt || Date.now()) + EXTEND_LIFETIME;
-    const newLikes = (note.likes || 0) + 1;
-
-    // Optimistic local update
-    note.expiresAt = newExpires;
-    note.likes = newLikes;
+    // Optimistic local update for instant visual feedback
+    note.expiresAt = (note.expiresAt || Date.now()) + EXTEND_LIFETIME;
+    note.likes = (note.likes || 0) + 1;
 
     // Emit celebration particles
     for (let i = 0; i < 8; i++) {
@@ -189,122 +174,40 @@ export class NotesManager {
 
     this.showToast('Lifespan extended by +2 hours! 🔥', 'flame');
 
-    if (isDemoMode) {
-      this.saveLocalNotes();
-    } else {
-      try {
-        const noteRef = doc(db, 'notes', noteId);
-        await updateDoc(noteRef, {
-          expiresAt: increment(EXTEND_LIFETIME),
-          likes: increment(1)
-        });
-      } catch (err) {
-        console.warn('Could not sync like to Firestore:', err);
-      }
+    try {
+      const noteRef = doc(db, 'notes', noteId);
+      await updateDoc(noteRef, {
+        expiresAt: increment(EXTEND_LIFETIME),
+        likes: increment(1)
+      });
+    } catch (err) {
+      console.warn('Could not sync like to Firestore:', err);
+      this.showToast('Could not sync to server — try again.', 'alert-triangle');
     }
   }
 
   /* ==========================================================================
-     SYNC / DATA SUBSCRIPTION
+     FIRESTORE REAL-TIME SUBSCRIPTION
      ========================================================================== */
 
   subscribeToNotes() {
-    if (isDemoMode) {
-      this.loadDemoNotes();
-      return;
-    }
+    const notesRef = collection(db, 'notes');
 
-    try {
-      const notesRef = collection(db, 'notes');
-      onSnapshot(notesRef, (snapshot) => {
-        snapshot.docChanges().forEach((change) => {
-          const docData = change.doc.data();
-          const id = change.doc.id;
+    onSnapshot(notesRef, (snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+        const docData = change.doc.data();
+        const id = change.doc.id;
 
-          if (change.type === 'added' || change.type === 'modified') {
-            this.notes.set(id, { id, ...docData });
-          } else if (change.type === 'removed') {
-            this.notes.delete(id);
-          }
-        });
-      }, (error) => {
-        console.warn('Firestore snapshot error, falling back to demo notes:', error);
-        this.loadDemoNotes();
+        if (change.type === 'added' || change.type === 'modified') {
+          this.notes.set(id, { id, ...docData });
+        } else if (change.type === 'removed') {
+          this.notes.delete(id);
+        }
       });
-    } catch (err) {
-      console.warn('Failed to subscribe to Firestore notes:', err);
-      this.loadDemoNotes();
-    }
-  }
-
-  loadDemoNotes() {
-    const saved = localStorage.getItem('boundless_canvas_notes');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        parsed.forEach(n => this.notes.set(n.id, n));
-        return;
-      } catch (e) {
-        console.error('Failed to parse cached demo notes');
-      }
-    }
-
-    // Seed default sample notes across the void
-    const now = Date.now();
-    const seedNotes = [
-      {
-        id: 'seed_1',
-        x: -110,
-        y: -90,
-        text: 'Welcome to the digital void. Everything here drifts, decays, and survives through the memory of strangers.',
-        color: '#FEF08A',
-        createdAt: now - 3600000,
-        expiresAt: now + DEFAULT_LIFETIME - 3600000,
-        likes: 12
-      },
-      {
-        id: 'seed_2',
-        x: 280,
-        y: -180,
-        text: 'Double click anywhere to leave a thought. Zoom out to explore constellations of minds.',
-        color: '#A7F3D0',
-        createdAt: now - 7200000,
-        expiresAt: now + DEFAULT_LIFETIME - 7200000,
-        likes: 8
-      },
-      {
-        id: 'seed_3',
-        x: -380,
-        y: 120,
-        text: 'This thought is starting to fade into ash... click 🔥 to keep the fire burning for +2 hours!',
-        color: '#FECDD3',
-        createdAt: now - (DEFAULT_LIFETIME - 15 * 60 * 1000), // Only 15 mins left!
-        expiresAt: now + 15 * 60 * 1000,
-        likes: 24
-      },
-      {
-        id: 'seed_4',
-        x: 420,
-        y: 260,
-        text: '“We are all wanderers in an infinite dark, casting small lanterns into the quiet.”',
-        color: '#DDD6FE',
-        createdAt: now - 1800000,
-        expiresAt: now + DEFAULT_LIFETIME - 1800000,
-        likes: 19
-      }
-    ];
-
-    seedNotes.forEach(n => this.notes.set(n.id, n));
-    this.saveLocalNotes();
-  }
-
-  saveLocalNotes() {
-    try {
-      const arr = Array.from(this.notes.values());
-      localStorage.setItem('boundless_canvas_notes', JSON.stringify(arr));
-    } catch (e) {
-      console.warn('LocalStorage save failed:', e);
-    }
+    }, (error) => {
+      console.error('Firestore snapshot listener error:', error);
+      this.showToast('Lost connection to Firestore — notes may be stale.', 'wifi-off');
+    });
   }
 
   /* ==========================================================================
@@ -316,7 +219,6 @@ export class NotesManager {
 
     // Double-click on canvas creates note
     canvas.addEventListener('dblclick', (e) => {
-      // Check if double clicking on an existing note
       const worldPos = this.canvasEngine.screenToWorld(e.clientX, e.clientY);
       const clickedNote = this.hitTestNote(worldPos.x, worldPos.y);
 

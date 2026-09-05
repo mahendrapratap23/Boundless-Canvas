@@ -1,13 +1,13 @@
 /**
  * ============================================================================
  * The Boundless Canvas — Realtime Presence & Ghost Cursors
- * RTDB ephemeral sync, throttled socket broadcasts, lerp smoothing
+ * Firebase RTDB ephemeral sync, throttled broadcasts, lerp smoothing
+ * 100% authentic — no simulated peers
  * ============================================================================
  */
 
 import {
   rtdb,
-  isDemoMode,
   ref,
   set,
   onValue,
@@ -19,7 +19,8 @@ const PSEUDONYMS = [
   'Cosmic Owl', 'Neon Wanderer', 'Visitor from Tokyo', 'Solar Nomad',
   'Lunar Explorer', 'Cyber Mystic', 'Midnight Echo', 'Starlight Drift',
   'Void Surfer', 'Quantum Mirage', 'Aether Pilgrim', 'Nebula Walker',
-  'Chronos Weaver', 'Polaris Glider', 'Zenith Nomad', 'Astral Cartographer'
+  'Chronos Weaver', 'Polaris Glider', 'Zenith Nomad', 'Astral Cartographer',
+  'Deep Horizon', 'Phantom Beacon', 'Eclipse Drifter', 'Nova Pathfinder'
 ];
 
 const CURSOR_COLORS = [
@@ -38,8 +39,8 @@ export class PresenceManager {
     this.canvasEngine = canvasEngine;
     this.onOnlineCountChange = onOnlineCountChange;
 
-    // Generate local user anonymous identity
-    this.userId = 'user_' + Math.random().toString(36).substring(2, 9);
+    // Generate local user anonymous identity (persistent across page reloads within session)
+    this.userId = this.getOrCreateUserId();
     this.userName = PSEUDONYMS[Math.floor(Math.random() * PSEUDONYMS.length)];
     this.userColor = CURSOR_COLORS[Math.floor(Math.random() * CURSOR_COLORS.length)];
 
@@ -48,24 +49,28 @@ export class PresenceManager {
 
     // Throttling state
     this.lastBroadcast = 0;
-    this.broadcastInterval = 45; // ms (approx 22 updates/sec)
-    this.pendingPos = null;
-
-    // Simulated peers for demo mode
-    this.simulatedPeers = [];
+    this.broadcastInterval = 45; // ms (~22 updates/sec)
 
     this.init();
   }
 
+  /**
+   * Create or retrieve a stable session ID so the same tab
+   * doesn't register multiple presence entries on reload.
+   */
+  getOrCreateUserId() {
+    let id = sessionStorage.getItem('boundless_canvas_uid');
+    if (!id) {
+      id = 'user_' + crypto.randomUUID().split('-')[0];
+      sessionStorage.setItem('boundless_canvas_uid', id);
+    }
+    return id;
+  }
+
   init() {
     this.updateIdentityUI();
+    this.initRTDBPresence();
     this.bindPointerMovement();
-
-    if (isDemoMode) {
-      this.initSimulatedPeers();
-    } else {
-      this.initRTDBPresence();
-    }
   }
 
   updateIdentityUI() {
@@ -77,7 +82,7 @@ export class PresenceManager {
       avatarDot.style.boxShadow = `0 0 10px ${this.userColor}`;
     }
     if (nameLabel) {
-      nameLabel.textContent = `${this.userName} (You)`;
+      nameLabel.textContent = this.userName;
     }
   }
 
@@ -86,65 +91,69 @@ export class PresenceManager {
      ========================================================================== */
 
   initRTDBPresence() {
-    try {
-      const userRef = ref(rtdb, `presence/${this.userId}`);
-      const allPresenceRef = ref(rtdb, 'presence');
+    const userRef = ref(rtdb, `presence/${this.userId}`);
+    const allPresenceRef = ref(rtdb, 'presence');
 
-      // Register clean disconnect
-      onDisconnect(userRef).remove();
+    // Register clean disconnect so our entry is removed when we leave
+    onDisconnect(userRef).remove();
 
-      // Listen for other users
-      onValue(allPresenceRef, (snapshot) => {
-        const data = snapshot.val() || {};
-        const now = Date.now();
-        const activeIds = new Set();
+    // Write initial presence immediately
+    set(userRef, {
+      x: 0,
+      y: 0,
+      name: this.userName,
+      color: this.userColor,
+      lastActive: Date.now()
+    });
 
-        Object.entries(data).forEach(([uid, val]) => {
-          if (uid === this.userId) return; // Skip self
+    // Listen for all users' presence data
+    onValue(allPresenceRef, (snapshot) => {
+      const data = snapshot.val() || {};
+      const now = Date.now();
+      const activeIds = new Set();
 
-          // Prune stale sessions (> 15 seconds)
-          if (now - val.lastActive > 15000) return;
+      Object.entries(data).forEach(([uid, val]) => {
+        if (uid === this.userId) return; // Skip our own cursor
 
-          activeIds.add(uid);
+        // Prune stale sessions (> 30 seconds without update)
+        if (now - val.lastActive > 30000) return;
 
-          if (!this.remoteCursors.has(uid)) {
-            this.remoteCursors.set(uid, {
-              x: val.x,
-              y: val.y,
-              targetX: val.x,
-              targetY: val.y,
-              name: val.name || 'Anonymous',
-              color: val.color || '#818cf8',
-              lastSeen: now
-            });
-          } else {
-            const cursor = this.remoteCursors.get(uid);
-            cursor.targetX = val.x;
-            cursor.targetY = val.y;
-            cursor.name = val.name;
-            cursor.color = val.color;
-            cursor.lastSeen = now;
-          }
-        });
+        activeIds.add(uid);
 
-        // Remove disconnected cursors
-        for (const uid of this.remoteCursors.keys()) {
-          if (!activeIds.has(uid)) {
-            this.remoteCursors.delete(uid);
-          }
-        }
-
-        if (this.onOnlineCountChange) {
-          this.onOnlineCountChange(this.remoteCursors.size + 1);
+        if (!this.remoteCursors.has(uid)) {
+          // New peer joined — initialize their cursor
+          this.remoteCursors.set(uid, {
+            x: val.x,
+            y: val.y,
+            targetX: val.x,
+            targetY: val.y,
+            name: val.name || 'Anonymous',
+            color: val.color || '#818cf8',
+            lastSeen: now
+          });
+        } else {
+          // Existing peer moved — update their target for lerping
+          const cursor = this.remoteCursors.get(uid);
+          cursor.targetX = val.x;
+          cursor.targetY = val.y;
+          cursor.name = val.name;
+          cursor.color = val.color;
+          cursor.lastSeen = now;
         }
       });
 
-      // Initial broadcast
-      this.broadcastPosition(0, 0);
-    } catch (err) {
-      console.warn('Realtime presence init error, falling back to simulated peers:', err);
-      this.initSimulatedPeers();
-    }
+      // Remove peers who disconnected
+      for (const uid of this.remoteCursors.keys()) {
+        if (!activeIds.has(uid)) {
+          this.remoteCursors.delete(uid);
+        }
+      }
+
+      // Update the live online count (remote peers + self)
+      if (this.onOnlineCountChange) {
+        this.onOnlineCountChange(this.remoteCursors.size + 1);
+      }
+    });
   }
 
   /* ==========================================================================
@@ -154,7 +163,6 @@ export class PresenceManager {
   bindPointerMovement() {
     window.addEventListener('pointermove', (e) => {
       const worldPos = this.canvasEngine.screenToWorld(e.clientX, e.clientY);
-      this.pendingPos = worldPos;
 
       const now = performance.now();
       if (now - this.lastBroadcast >= this.broadcastInterval) {
@@ -163,20 +171,18 @@ export class PresenceManager {
       }
     });
 
-    // Cleanup when closing window
+    // Explicit cleanup when the user closes/refreshes the tab
     window.addEventListener('beforeunload', () => {
-      if (!isDemoMode && rtdb) {
-        try {
-          const userRef = ref(rtdb, `presence/${this.userId}`);
-          remove(userRef);
-        } catch (e) {}
+      try {
+        const userRef = ref(rtdb, `presence/${this.userId}`);
+        remove(userRef);
+      } catch (e) {
+        // Silently ignore — onDisconnect handles this server-side too
       }
     });
   }
 
   broadcastPosition(worldX, worldY) {
-    if (isDemoMode || !rtdb) return;
-
     try {
       const userRef = ref(rtdb, `presence/${this.userId}`);
       set(userRef, {
@@ -187,47 +193,7 @@ export class PresenceManager {
         lastActive: Date.now()
       });
     } catch (e) {
-      // Ignored for network blips
-    }
-  }
-
-  /* ==========================================================================
-     SIMULATED EXPLORER PEERS (DEMO MODE)
-     ========================================================================== */
-
-  initSimulatedPeers() {
-    const names = ['Neon Wanderer', 'Visitor from Tokyo', 'Cosmic Owl', 'Solar Nomad'];
-    const colors = ['#38bdf8', '#f472b6', '#34d399', '#fbbf24'];
-
-    this.simulatedPeers = names.map((name, i) => ({
-      id: `sim_${i}`,
-      name: name,
-      color: colors[i % colors.length],
-      x: (Math.random() - 0.5) * 600,
-      y: (Math.random() - 0.5) * 400,
-      targetX: (Math.random() - 0.5) * 600,
-      targetY: (Math.random() - 0.5) * 400,
-      nextMoveTime: performance.now() + Math.random() * 2000
-    }));
-
-    if (this.onOnlineCountChange) {
-      this.onOnlineCountChange(this.simulatedPeers.length + 1);
-    }
-  }
-
-  updateSimulatedPeers() {
-    const now = performance.now();
-    for (const peer of this.simulatedPeers) {
-      // Pick new wander target when time elapses
-      if (now >= peer.nextMoveTime) {
-        peer.targetX = peer.x + (Math.random() - 0.5) * 350;
-        peer.targetY = peer.y + (Math.random() - 0.5) * 250;
-        peer.nextMoveTime = now + 1800 + Math.random() * 3200;
-      }
-
-      // Smooth step towards target
-      peer.x += (peer.targetX - peer.x) * 0.04;
-      peer.y += (peer.targetY - peer.y) * 0.04;
+      // Silently ignore transient network errors
     }
   }
 
@@ -236,27 +202,17 @@ export class PresenceManager {
      ========================================================================== */
 
   renderCursors(ctx) {
-    const zoom = this.canvasEngine.camera.zoom;
-
-    // Render Real Remote Cursors
+    // Render only real remote peer cursors
     for (const [uid, cursor] of this.remoteCursors.entries()) {
-      // Interpolate smoothly toward target
+      // Smoothly interpolate toward latest known position
       cursor.x += (cursor.targetX - cursor.x) * 0.22;
       cursor.y += (cursor.targetY - cursor.y) * 0.22;
 
-      this.drawSingleCursor(ctx, cursor.x, cursor.y, cursor.name, cursor.color, zoom);
-    }
-
-    // Render Simulated Peers in Demo Mode
-    if (isDemoMode) {
-      this.updateSimulatedPeers();
-      for (const peer of this.simulatedPeers) {
-        this.drawSingleCursor(ctx, peer.x, peer.y, peer.name, peer.color, zoom);
-      }
+      this.drawSingleCursor(ctx, cursor.x, cursor.y, cursor.name, cursor.color);
     }
   }
 
-  drawSingleCursor(ctx, worldX, worldY, name, color, zoom) {
+  drawSingleCursor(ctx, worldX, worldY, name, color) {
     // Frustum check: skip if far outside screen
     if (!this.canvasEngine.isInViewport(worldX, worldY, 40, 40, 100)) {
       return;
@@ -266,7 +222,7 @@ export class PresenceManager {
 
     ctx.save();
 
-    // 1. Draw Sleek Vector Cursor Arrow
+    // 1. Draw sleek vector cursor arrow
     ctx.translate(screenPos.x, screenPos.y);
 
     // Glowing subtle shadow under cursor
@@ -291,7 +247,7 @@ export class PresenceManager {
     ctx.lineWidth = 1.4;
     ctx.stroke();
 
-    // 2. Draw Pseudonym Pill Label
+    // 2. Draw pseudonym pill label
     const fontSize = 11;
     ctx.font = `600 ${fontSize}px "Inter", sans-serif`;
     const labelPaddingX = 8;
@@ -313,7 +269,7 @@ export class PresenceManager {
     ctx.lineWidth = 1;
     ctx.stroke();
 
-    // Pill text (crisp dark text for readability on pastel backgrounds)
+    // Pill text
     ctx.fillStyle = '#0f172a';
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'center';
