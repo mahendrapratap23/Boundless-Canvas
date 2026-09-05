@@ -1,4 +1,8 @@
-# 🌌 The Boundless Canvas
+<p align="center">
+  <img src="assets/logo.png" alt="Boundless Canvas Logo" width="360" />
+</p>
+
+# 🌌 Boundless Canvas
 
 A modern, high-performance, single-page infinite 2D digital void built with **vanilla HTML5, CSS3, modern ES6+ JavaScript**, and **Firebase Modular SDK (v10+)**.
 

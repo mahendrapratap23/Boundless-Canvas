@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220" fill="none">
+  <!-- Square canvas frame with open right portal -->
+  <path d="M185 24 H95 V128 H185 V88" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-linejoin="miter"/>
+  <path d="M185 24 V36" stroke="currentColor" stroke-width="8" stroke-linecap="round"/>
+
+  <!-- Infinity loop breaking through the canvas boundary -->
+  <path d="M 148 62 
+           C 134 46, 112 46, 112 62 
+           C 112 78, 134 78, 148 62 
+           C 162 46, 184 46, 184 62 
+           C 184 78, 162 78, 148 62 Z" 
+        stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+  <!-- Typography -->
+  <text x="140" y="172" text-anchor="middle" font-family="'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif" font-weight="800" font-size="28" letter-spacing="7" fill="currentColor">BOUNDLESS</text>
+  <text x="140" y="202" text-anchor="middle" font-family="'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif" font-weight="600" font-size="15" letter-spacing="14" fill="currentColor">CANVAS</text>
+</svg>

@@ -6,8 +6,8 @@
   <title>The Boundless Canvas — Infinite 2D Digital Void</title>
   <meta name="description" content="An infinite, dark-mode 2D digital void where users pan, zoom, leave decaying sticky notes, and see real-time ghost cursors of other explorers.">
 
-  <!-- Favicon SVG -->
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23818cf8' stroke-width='2'><circle cx='12' cy='12' r='10'/><path d='M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20'/><path d='M2 12h20'/></svg>">
+  <!-- Favicon with Boundless Canvas Logo -->
+  <link rel="icon" type="image/svg+xml" href="assets/logo.svg">
 
   <!-- Google Fonts: Plus Jakarta Sans & Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -27,11 +27,15 @@
   <!-- Top Navigation HUD -->
   <header class="hud-top-bar glass-panel" id="top-bar">
     <div class="hud-brand">
-      <div class="hud-logo-icon">
-        <i data-lucide="infinity"></i>
+      <div class="hud-logo-icon" title="The Boundless Canvas">
+        <svg class="brand-logo-svg" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M102 38 H38 V122 H102 V88" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-linejoin="miter"/>
+          <path d="M102 38 V48" stroke="currentColor" stroke-width="8" stroke-linecap="round"/>
+          <path d="M 72 68 C 62 55, 46 55, 46 68 C 46 81, 62 81, 72 68 C 82 55, 98 55, 98 68 C 98 81, 82 81, 72 68 Z" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        </svg>
       </div>
       <div class="hud-brand-text">
-        <span class="brand-title">The Boundless Canvas</span>
+        <span class="brand-title">Boundless Canvas</span>
         <span class="brand-subtitle">Infinite Collective Space</span>
       </div>
     </div>
@@ -140,7 +144,19 @@
   <div class="modal-backdrop" id="help-modal" style="display: none;">
     <div class="modal-card glass-panel">
       <div class="modal-header">
-        <h3><i data-lucide="compass"></i> Navigating the Boundless Canvas</h3>
+        <div class="modal-brand-badge">
+          <div class="modal-logo-icon">
+            <svg class="modal-logo-svg" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M102 38 H38 V122 H102 V88" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-linejoin="miter"/>
+              <path d="M102 38 V48" stroke="currentColor" stroke-width="8" stroke-linecap="round"/>
+              <path d="M 72 68 C 62 55, 46 55, 46 68 C 46 81, 62 81, 72 68 C 82 55, 98 55, 98 68 C 98 81, 82 81, 72 68 Z" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            </svg>
+          </div>
+          <div>
+            <h3 class="modal-brand-title">Boundless Canvas</h3>
+            <span class="modal-brand-sub">Navigation & Survival Guide</span>
+          </div>
+        </div>
         <button class="modal-close-btn" id="help-close"><i data-lucide="x"></i></button>
       </div>
       <div class="modal-body">
