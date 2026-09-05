@@ -140,9 +140,9 @@
     </div>
   </div>
 
-  <!-- Help & Shortcuts Modal -->
-  <div class="modal-backdrop" id="help-modal" style="display: none;">
-    <div class="modal-card glass-panel">
+  <!-- Why It Matters & Guide Modal -->
+  <div class="modal-backdrop" id="help-modal" aria-hidden="true">
+    <div class="modal-card glass-panel" role="dialog" aria-modal="true" aria-labelledby="purpose-modal-title">
       <div class="modal-header">
         <div class="modal-brand-badge">
           <div class="modal-logo-icon">
@@ -153,35 +153,114 @@
             </svg>
           </div>
           <div>
-            <h3 class="modal-brand-title">Boundless Canvas</h3>
-            <span class="modal-brand-sub">Navigation & Survival Guide</span>
+            <h3 class="modal-brand-title" id="purpose-modal-title">The Boundless Canvas</h3>
+            <span class="modal-brand-sub">Why It Matters &amp; Purpose</span>
           </div>
         </div>
-        <button class="modal-close-btn" id="help-close"><i data-lucide="x"></i></button>
+        <button class="modal-close-btn" id="help-close" aria-label="Close modal" title="Close (Esc)">
+          <i data-lucide="x"></i>
+        </button>
       </div>
+
+      <!-- Navigation Tabs -->
+      <div class="modal-tabs" role="tablist">
+        <button class="modal-tab active" data-tab="purpose" role="tab" aria-selected="true" aria-controls="tab-pane-purpose">
+          <i data-lucide="sparkles"></i>
+          <span>Why It Matters</span>
+        </button>
+        <button class="modal-tab" data-tab="shortcuts" role="tab" aria-selected="false" aria-controls="tab-pane-shortcuts">
+          <i data-lucide="compass"></i>
+          <span>Navigation &amp; Controls</span>
+        </button>
+      </div>
+
       <div class="modal-body">
-        <div class="shortcut-row">
-          <span class="shortcut-keys"><kbd>Space</kbd> + <kbd>Drag</kbd> or <kbd>Middle Click</kbd></span>
-          <span class="shortcut-desc">Pan endlessly across the canvas with momentum</span>
+        <!-- Purpose Tab Pane (Active Default) -->
+        <div class="tab-pane active" id="tab-pane-purpose" role="tabpanel">
+          <ul class="purpose-list">
+            <li class="purpose-item">
+              <span class="purpose-bullet"></span>
+              <div class="purpose-text">
+                <strong class="purpose-key">Zero Identity Pressure:</strong>
+                <span class="purpose-val">You post with no name, profile, or followers, so you can be completely honest without fear.</span>
+              </div>
+            </li>
+            <li class="purpose-item">
+              <span class="purpose-bullet"></span>
+              <div class="purpose-text">
+                <strong class="purpose-key">Emotional Catharsis:</strong>
+                <span class="purpose-val">You get a safe place to dump secret thoughts, grief, or late-night feelings and let them go.</span>
+              </div>
+            </li>
+            <li class="purpose-item">
+              <span class="purpose-bullet"></span>
+              <div class="purpose-text">
+                <strong class="purpose-key">The Desire to Leave a Mark:</strong>
+                <span class="purpose-val">Pinning a note gives you the natural human feeling of saying "I was here."</span>
+              </div>
+            </li>
+            <li class="purpose-item">
+              <span class="purpose-bullet"></span>
+              <div class="purpose-text">
+                <strong class="purpose-key">No Algorithmic Stress:</strong>
+                <span class="purpose-val">You explore a real spatial map instead of being trapped in an addictive, angry feed.</span>
+              </div>
+            </li>
+            <li class="purpose-item">
+              <span class="purpose-bullet"></span>
+              <div class="purpose-text">
+                <strong class="purpose-key">Meaningful Feedback:</strong>
+                <span class="purpose-val">Strangers keeping your note alive with +2 hours feels like real empathy, not just empty likes.</span>
+              </div>
+            </li>
+            <li class="purpose-item">
+              <span class="purpose-bullet"></span>
+              <div class="purpose-text">
+                <strong class="purpose-key">Natural Closure:</strong>
+                <span class="purpose-val">Thoughts fade into ash if forgotten, which stops the burden of a permanent internet record.</span>
+              </div>
+            </li>
+            <li class="purpose-item">
+              <span class="purpose-bullet"></span>
+              <div class="purpose-text">
+                <strong class="purpose-key">A Feeling of Togetherness:</strong>
+                <span class="purpose-val">Seeing live ghost cursors reminds you that you are not alone in the void.</span>
+              </div>
+            </li>
+          </ul>
         </div>
-        <div class="shortcut-row">
-          <span class="shortcut-keys"><kbd>Scroll Wheel</kbd> or <kbd>Pinch</kbd></span>
-          <span class="shortcut-desc">Zoom centered precisely on cursor</span>
-        </div>
-        <div class="shortcut-row">
-          <span class="shortcut-keys"><kbd>Double Click</kbd> or <kbd>N</kbd></span>
-          <span class="shortcut-desc">Create a new sticky note at coordinate</span>
-        </div>
-        <div class="shortcut-row">
-          <span class="shortcut-keys"><kbd>0</kbd></span>
-          <span class="shortcut-desc">Reset camera to origin (0, 0)</span>
-        </div>
-        <div class="shortcut-row">
-          <span class="shortcut-keys"><kbd>🔥</kbd> Click on Note</span>
-          <span class="shortcut-desc">Extend note lifespan by +2 hours</span>
-        </div>
-        <div class="shortcut-hint">
-          <p>⏳ <strong>The Decay Engine:</strong> Thoughts naturally fade and burn into ash after 24 hours unless fellow wanderers keep them alive.</p>
+
+        <!-- Shortcuts Tab Pane -->
+        <div class="tab-pane" id="tab-pane-shortcuts" role="tabpanel">
+          <div class="shortcut-list">
+            <div class="shortcut-row">
+              <span class="shortcut-keys"><kbd>Space</kbd> + <kbd>Drag</kbd> or <kbd>Middle Click</kbd></span>
+              <span class="shortcut-desc">Pan endlessly across the canvas with momentum</span>
+            </div>
+            <div class="shortcut-row">
+              <span class="shortcut-keys"><kbd>Scroll Wheel</kbd> or <kbd>Pinch</kbd></span>
+              <span class="shortcut-desc">Zoom centered precisely on cursor</span>
+            </div>
+            <div class="shortcut-row">
+              <span class="shortcut-keys"><kbd>Double Click</kbd> or <kbd>N</kbd></span>
+              <span class="shortcut-desc">Create a new sticky note at coordinate</span>
+            </div>
+            <div class="shortcut-row">
+              <span class="shortcut-keys"><kbd>0</kbd></span>
+              <span class="shortcut-desc">Reset camera to origin (0, 0)</span>
+            </div>
+            <div class="shortcut-row">
+              <span class="shortcut-keys"><kbd>❤️</kbd> Like Button</span>
+              <span class="shortcut-desc">Extend note lifespan by +2 hours (+2h badge)</span>
+            </div>
+            <div class="shortcut-row">
+              <span class="shortcut-keys"><kbd>🔥</kbd> Burn Button</span>
+              <span class="shortcut-desc">Accelerate decay by -10% with ash shake</span>
+            </div>
+            <div class="shortcut-hint">
+              <p>⏳ <strong>The Decay Engine:</strong> Thoughts naturally fade and burn into ash after 24 hours unless fellow wanderers keep them alive.</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>

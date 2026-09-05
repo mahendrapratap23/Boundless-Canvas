@@ -182,7 +182,7 @@ class BoundlessCanvasApp {
       this.copyShareUrl();
     });
 
-    // Help Modal
+    // Why It Matters / Help Modal
     document.getElementById('btn-help')?.addEventListener('click', () => {
       this.toggleHelpModal(true);
     });
@@ -195,6 +195,14 @@ class BoundlessCanvasApp {
       if (e.target === this.helpModal) {
         this.toggleHelpModal(false);
       }
+    });
+
+    // Modal Tab Switching
+    document.querySelectorAll('.modal-tab').forEach((tabBtn) => {
+      tabBtn.addEventListener('click', () => {
+        const targetTab = tabBtn.getAttribute('data-tab');
+        this.switchModalTab(targetTab);
+      });
     });
   }
 
@@ -252,10 +260,35 @@ class BoundlessCanvasApp {
 
   toggleHelpModal(show) {
     if (this.helpModal) {
-      this.helpModal.style.display = show ? 'flex' : 'none';
-      if (show && window.lucide) {
-        window.lucide.createIcons();
+      if (show) {
+        this.helpModal.classList.add('is-open');
+        this.helpModal.setAttribute('aria-hidden', 'false');
+        if (window.lucide) {
+          window.lucide.createIcons();
+        }
+      } else {
+        this.helpModal.classList.remove('is-open');
+        this.helpModal.setAttribute('aria-hidden', 'true');
       }
+    }
+  }
+
+  switchModalTab(tabName) {
+    if (!tabName) return;
+
+    document.querySelectorAll('.modal-tab').forEach((btn) => {
+      const isActive = btn.getAttribute('data-tab') === tabName;
+      btn.classList.toggle('active', isActive);
+      btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    });
+
+    document.querySelectorAll('.tab-pane').forEach((pane) => {
+      const isActive = pane.id === `tab-pane-${tabName}`;
+      pane.classList.toggle('active', isActive);
+    });
+
+    if (window.lucide) {
+      window.lucide.createIcons();
     }
   }
 
