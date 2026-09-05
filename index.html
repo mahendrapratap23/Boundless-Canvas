@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>The Boundless Canvas — Infinite 2D Digital Void</title>
+  <meta name="description" content="An infinite, dark-mode 2D digital void where users pan, zoom, leave decaying sticky notes, and see real-time ghost cursors of other explorers.">
+
+  <!-- Favicon SVG -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23818cf8' stroke-width='2'><circle cx='12' cy='12' r='10'/><path d='M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20'/><path d='M2 12h20'/></svg>">
+
+  <!-- Google Fonts: Plus Jakarta Sans & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Main Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Fullscreen Infinite Canvas -->
+  <canvas id="canvas"></canvas>
+
+  <!-- Top Navigation HUD -->
+  <header class="hud-top-bar glass-panel" id="top-bar">
+    <div class="hud-brand">
+      <div class="hud-logo-icon">
+        <i data-lucide="infinity"></i>
+      </div>
+      <div class="hud-brand-text">
+        <span class="brand-title">The Boundless Canvas</span>
+        <span class="brand-subtitle">Infinite Collective Space</span>
+      </div>
+    </div>
+
+    <div class="hud-stats">
+      <!-- Live Online Presence Badge -->
+      <div class="presence-badge" id="presence-badge" title="Active peers in the void">
+        <span class="pulse-indicator">
+          <span class="pulse-ring"></span>
+          <span class="pulse-dot"></span>
+        </span>
+        <span class="presence-count" id="online-count">1</span>
+        <span class="presence-label">exploring</span>
+      </div>
+
+      <!-- Coordinates & Zoom readout -->
+      <div class="coords-pill" id="coords-display" title="Current Coordinates & Zoom level">
+        <span class="coord-item"><span class="coord-label">X:</span> <span class="coord-val" id="coord-x">0</span></span>
+        <span class="coord-separator">•</span>
+        <span class="coord-item"><span class="coord-label">Y:</span> <span class="coord-val" id="coord-y">0</span></span>
+        <span class="coord-separator">•</span>
+        <span class="coord-item"><span class="coord-label">Zoom:</span> <span class="coord-val" id="coord-zoom">100%</span></span>
+      </div>
+
+      <!-- User Identity Tag -->
+      <div class="user-tag" id="user-tag" title="Your anonymous identity in this void">
+        <span class="user-color-dot" id="user-avatar-dot"></span>
+        <span class="user-name" id="user-pseudonym">Connecting...</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Empty Viewport Hint -->
+  <div class="empty-void-hint" id="empty-hint">
+    <i data-lucide="sparkles"></i>
+    <span>This space is empty. Double-click or press <kbd>N</kbd> to leave a thought.</span>
+  </div>
+
+  <!-- Bottom Floating Control Dock -->
+  <nav class="hud-bottom-dock glass-panel" id="bottom-dock" aria-label="Canvas controls">
+    <button class="dock-btn primary-action" id="btn-new-note" title="Pin New Thought (N)">
+      <i data-lucide="plus"></i>
+      <span>Pin Thought</span>
+      <kbd>N</kbd>
+    </button>
+
+    <div class="dock-divider"></div>
+
+    <button class="dock-btn" id="btn-recenter" title="Recenter to Origin (0,0) (Space+0)">
+      <i data-lucide="crosshair"></i>
+      <span>Recenter</span>
+    </button>
+
+    <div class="dock-btn-group">
+      <button class="dock-btn icon-only" id="btn-zoom-out" title="Zoom Out (-)">
+        <i data-lucide="minus"></i>
+      </button>
+      <button class="dock-btn icon-only" id="btn-zoom-in" title="Zoom In (+)">
+        <i data-lucide="plus"></i>
+      </button>
+    </div>
+
+    <div class="dock-divider"></div>
+
+    <button class="dock-btn" id="btn-share" title="Copy coordinate link with current view">
+      <i data-lucide="share-2"></i>
+      <span>Share View</span>
+    </button>
+
+    <button class="dock-btn icon-only" id="btn-help" title="Keyboard Shortcuts & Guide">
+      <i data-lucide="help-circle"></i>
+    </button>
+  </nav>
+
+  <!-- Note Creation Floating Modal / Overlay -->
+  <div class="note-editor-overlay" id="note-editor" style="display: none;">
+    <div class="note-card-editor glass-panel">
+      <div class="editor-header">
+        <span class="editor-title">Pin a Thought</span>
+        <button class="editor-close-btn" id="editor-close" title="Close (Esc)">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+
+      <div class="editor-body">
+        <textarea id="note-textarea" placeholder="Write something into the void... (survives 24h)" maxlength="320" rows="4"></textarea>
+      </div>
+
+      <div class="editor-footer">
+        <div class="color-picker" id="color-picker" title="Select Note Color">
+          <!-- Populated dynamically with pastel swatches -->
+        </div>
+
+        <div class="editor-actions">
+          <span class="char-counter" id="char-counter">320</span>
+          <button class="editor-btn submit-btn" id="editor-submit">
+            <i data-lucide="pin"></i>
+            <span>Pin</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Help & Shortcuts Modal -->
+  <div class="modal-backdrop" id="help-modal" style="display: none;">
+    <div class="modal-card glass-panel">
+      <div class="modal-header">
+        <h3><i data-lucide="compass"></i> Navigating the Boundless Canvas</h3>
+        <button class="modal-close-btn" id="help-close"><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="shortcut-row">
+          <span class="shortcut-keys"><kbd>Space</kbd> + <kbd>Drag</kbd> or <kbd>Middle Click</kbd></span>
+          <span class="shortcut-desc">Pan endlessly across the canvas with momentum</span>
+        </div>
+        <div class="shortcut-row">
+          <span class="shortcut-keys"><kbd>Scroll Wheel</kbd> or <kbd>Pinch</kbd></span>
+          <span class="shortcut-desc">Zoom centered precisely on cursor</span>
+        </div>
+        <div class="shortcut-row">
+          <span class="shortcut-keys"><kbd>Double Click</kbd> or <kbd>N</kbd></span>
+          <span class="shortcut-desc">Create a new sticky note at coordinate</span>
+        </div>
+        <div class="shortcut-row">
+          <span class="shortcut-keys"><kbd>0</kbd></span>
+          <span class="shortcut-desc">Reset camera to origin (0, 0)</span>
+        </div>
+        <div class="shortcut-row">
+          <span class="shortcut-keys"><kbd>🔥</kbd> Click on Note</span>
+          <span class="shortcut-desc">Extend note lifespan by +2 hours</span>
+        </div>
+        <div class="shortcut-hint">
+          <p>⏳ <strong>The Decay Engine:</strong> Thoughts naturally fade and burn into ash after 24 hours unless fellow wanderers keep them alive.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Main Application Script (ES Module) -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
