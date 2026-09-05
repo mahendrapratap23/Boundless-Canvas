@@ -1,8 +1,19 @@
 <p align="center">
-  <img src="assets/logo.png" alt="The Boundless Canvas Logo" width="360" />
+  <img src="assets/logo.png" alt="The Boundless Canvas Logo" width="320" style="border-radius: 24px; box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);" />
 </p>
 
-# 🌌 The Boundless Canvas
+<h1 align="center">🌌 The Boundless Canvas</h1>
+
+<p align="center">
+  <strong>An infinite, dark-mode 2D digital void for honest, ephemeral human connection.</strong>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Status-Live%20Authentic-10b981?style=flat-square" alt="Status" />
+  <img src="https://img.shields.io/badge/Backend-Firebase%20v10+-f59e0b?style=flat-square" alt="Firebase" />
+  <img src="https://img.shields.io/badge/Stack-Vanilla%20HTML5%20%2F%20CSS3%20%2F%20ES6+-3b82f6?style=flat-square" alt="Stack" />
+  <img src="https://img.shields.io/badge/License-MIT-8b5cf6?style=flat-square" alt="License" />
+</p>
 
 A modern, high-performance, single-page infinite 2D digital void built with **vanilla HTML5, CSS3, modern ES6+ JavaScript**, and **Firebase Modular SDK (v10+)**.
 
