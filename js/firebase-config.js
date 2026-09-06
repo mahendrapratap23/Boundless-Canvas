@@ -47,7 +47,8 @@ import {
   set, 
   onValue, 
   onDisconnect, 
-  remove 
+  remove,
+  runTransaction
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
 // Live Firebase project configuration
@@ -92,5 +93,6 @@ export {
   set,
   onValue,
   onDisconnect,
-  remove
+  remove,
+  runTransaction
 };

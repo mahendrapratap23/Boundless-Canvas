@@ -246,6 +246,81 @@ html, body {
   font-size: 0.75rem;
 }
 
+/* Already Visited People Badge */
+.visited-badge {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px;
+  background: rgba(129, 140, 248, 0.08);
+  border: 1px solid rgba(129, 140, 248, 0.22);
+  border-radius: var(--radius-full);
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #c7d2fe;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: default;
+  user-select: none;
+}
+
+.visited-badge:hover {
+  background: rgba(129, 140, 248, 0.15);
+  border-color: rgba(129, 140, 248, 0.45);
+  box-shadow: 0 0 16px rgba(99, 102, 241, 0.3);
+  transform: translateY(-1px);
+}
+
+.visited-icon {
+  width: 14px;
+  height: 14px;
+  color: #818cf8;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.visited-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.visited-count {
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+}
+
+.visited-label {
+  color: #a5b4fc;
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+}
+
+/* Authentic update bump glow animation */
+@keyframes visitedCountGlow {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  }
+  40% {
+    transform: scale(1.08);
+    background: rgba(129, 140, 248, 0.25);
+    border-color: rgba(129, 140, 248, 0.7);
+    box-shadow: 0 0 20px rgba(129, 140, 248, 0.6);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  }
+}
+
+.visited-badge.count-bump {
+  animation: visitedCountGlow 0.7s var(--ease-spring);
+}
+
 /* Coordinates Pill */
 .coords-pill {
   display: flex;
@@ -1050,6 +1125,27 @@ html, body {
     display: none;
   }
 
+  .hud-stats {
+    gap: 8px;
+  }
+
+  .presence-badge,
+  .visited-badge {
+    padding: 5px 9px;
+    font-size: 0.75rem;
+    gap: 6px;
+  }
+
+  .visited-icon {
+    width: 12px;
+    height: 12px;
+  }
+
+  .visited-icon svg {
+    width: 12px;
+    height: 12px;
+  }
+
   .hud-bottom-dock {
     bottom: 16px;
     padding: 0 6px;
@@ -1072,5 +1168,25 @@ html, body {
     width: 40px;
     padding: 0;
     justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .hud-top-bar {
+    padding: 0 10px;
+  }
+
+  .brand-title {
+    font-size: 0.88rem;
+  }
+
+  .presence-label,
+  .visited-label {
+    display: none;
+  }
+
+  .presence-badge,
+  .visited-badge {
+    padding: 5px 8px;
   }
 }

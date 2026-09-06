@@ -8,6 +8,7 @@
 import { CanvasEngine } from './canvas.js';
 import { NotesManager } from './notes.js';
 import { PresenceManager } from './presence.js';
+import { VisitorCounter } from './visitor-counter.js';
 
 class BoundlessCanvasApp {
   constructor() {
@@ -17,6 +18,7 @@ class BoundlessCanvasApp {
     this.coordY = document.getElementById('coord-y');
     this.coordZoom = document.getElementById('coord-zoom');
     this.onlineCountEl = document.getElementById('online-count');
+    this.visitedCountEl = document.getElementById('visited-count');
     this.emptyHint = document.getElementById('empty-hint');
     this.toastContainer = document.getElementById('toast-container');
     this.helpModal = document.getElementById('help-modal');
@@ -39,12 +41,15 @@ class BoundlessCanvasApp {
     // 3. Initialize Notes Manager
     this.notesManager = new NotesManager(this.engine, (msg, icon) => this.showToast(msg, icon));
 
-    // 4. Initialize Presence Manager
+    // 4. Initialize Presence Manager (Live online wanderers)
     this.presenceManager = new PresenceManager(this.engine, (count) => {
       if (this.onlineCountEl) {
         this.onlineCountEl.textContent = count;
       }
     });
+
+    // 5. Initialize Authentic Visitor Counter (Cumulative visits starting from 0)
+    this.visitorCounter = new VisitorCounter();
 
     // 5. Restore camera position from URL Deep Link
     this.parseUrlCoordinates();

@@ -51,14 +51,15 @@ The Boundless Canvas is designed around an intentional digital philosophy:
 - **🔥 Burn Button (`-10%`)**: Accelerates decay by reducing remaining lifespan by **10%**, spawning a floating red `-10%` badge, triggering an ash/flame shake animation, and releasing an ember burst.
 - **Optimistic UI Updates**: Timer readouts update instantaneously in memory before the network write finishes to keep the experience snappy.
 
-### 👻 100% Authentic Realtime Presence
+### 👻 100% Authentic Realtime Presence & Visitor Counter
 - **Real Ghost Cursors**: Ephemeral presence synchronization powered by Firebase Realtime Database (`presence/{userId}`).
 - **Zero Simulation / No Bots**: All visible cursors are authentic connected users; no simulated bot wanderers.
+- **Authentic Visitor Counter**: Starts count from 0 and atomically increments all-time visits (`stats/totalVisits`) using Firebase RTDB transactions, deduplicated per session and broadcasted live to all users with animated odometer transitions and bump glow.
 - **Smooth Interpolation**: Throttled broadcasts (45ms) smoothed with linear interpolation (lerping) for fluid movement.
 - **Automatic Disconnect Cleanup**: Managed via Firebase's `onDisconnect().remove()`.
 
 ### 🪟 Glassmorphism UI & Navigation
-- **Floating HUD**: Minimalist top bar with live online wanderer count and real-time `(X, Y, Zoom)` coordinate readout.
+- **Floating HUD**: Minimalist top bar with live online wanderer count, all-time authentic visitor count badge, and real-time `(X, Y, Zoom)` coordinate readout.
 - **Floating Dock**: Bottom navigation bar for rapid actions (Pin Thought, Recenter, Zoom, Share View, Why It Matters).
 - **Deep-Linking URL Hash**: Instant sharing of exact coordinates and zoom via `#x=...&y=...&z=...`.
 - **Purpose & Guide Modal**: Frosted glassmorphism overlay (`backdrop-filter: blur(16px)`, `rgba(15, 23, 42, 0.85)`) with tabbed navigation between *Why It Matters* (featuring glowing celestial markers) and *Navigation & Controls*.
@@ -80,6 +81,7 @@ boundless-canvas/
 │   ├── canvas.js           # 2D Camera math, pan/zoom inertia, frustum culling & grid
 │   ├── notes.js            # Sticky notes, Firestore sync, decay physics, particles & actions
 │   ├── presence.js         # Realtime Database presence & lerped ghost cursors
+│   ├── visitor-counter.js  # Authentic visitor counting & live RTDB synchronization
 │   └── app.js              # Coordinator, 60 FPS game loop, modal controls & shortcuts
 ├── README.md               # Documentation & setup guide
 └── .gitignore              # Standard gitignore
